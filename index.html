@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POC SAML App</title>
+  </head>
+  <body>
+    <h1>Welcome to POC SAML App</h1>
+    <button id="login">Login with Entra ID</button>
+
+    <div id="message" style="margin-top: 20px"></div>
+    <div id="features" style="display: none">
+      <h2>Available Features</h2>
+      <ul id="feature-list"></ul>
+    </div>
+
+    <script>
+      function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+      }
+      async function validateUser(username, department) {
+        console.log("Sending to Azure Function:", { username, department });
+
+        try {
+          const response = await fetch(
+            "https://feature-access-func.azurewebsites.net/api/feature-access-func?code=YBdSMer4GwQN3BDX3pudkw53hr6xqfI3wjxkR8fTyBSLAzFuz0sfWg==",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username, department }),
+            }
+          );
+
+          const result = await response.json();
+          console.log("Function Response:", result);
+
+          const message = document.getElementById("message");
+          const features = document.getElementById("features");
+          const featureList = document.getElementById("feature-list");
+
+          if (result.access === "granted") {
+            message.innerHTML = `<strong>Welcome ${username}</strong><br/>✅ Access granted to all features!`;
+            featureList.innerHTML = `
+        <li>Vehicle Order Management</li>
+        <li>Billing Portal</li>
+        <li>Car Model Configurator</li>`;
+            features.style.display = "block";
+          } else if (result.access === "restricted") {
+            message.innerHTML = `<strong>Welcome ${username}</strong><br/>⚠️ Access restricted to department-level features.`;
+            featureList.innerHTML =
+              department === "Sales"
+                ? `<li>Billing Portal</li>`
+                : `<li>Marketing Dashboard</li>`;
+            features.style.display = "block";
+          } else {
+            message.innerHTML = `<strong>Welcome ${username}</strong><br/>❌ Access denied. Please contact admin.`;
+            features.style.display = "none";
+          }
+        } catch (error) {
+          console.error("Error contacting Azure Function:", error);
+          document.getElementById("message").innerText =
+            "❗ Failed to validate access. Check the function or network connection.";
+        }
+      }
+
+      window.addEventListener("load", () => {
+        const username = getQueryParam("username");
+        const department = getQueryParam("department");
+
+        if (username && department) {
+          // Hide login button if user is already authenticated
+          document.getElementById("login").style.display = "none";
+          validateUser(username, department);
+        } else {
+          // Show login button and allow redirect
+          document
+            .getElementById("login")
+            .addEventListener("click", function () {
+              window.location.href =
+                "https://myapps.microsoft.com/signin/ae3aac80-5620-4e63-b28d-fa87033f6ea0?tenantId=22ccb2b7-1311-4aff-becf-2d81fecd7e97";
+            });
+        }
+      });
+    </script>
+  </body>
+</html>
